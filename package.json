@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "rax": "^0.6.4",
+    "rax-calendar": "^0.6.5",
     "rax-image": "^0.6.4",
     "rax-link": "^0.6.4",
     "rax-listview": "^0.6.4",

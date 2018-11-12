@@ -14,7 +14,7 @@ class App extends Component{
     
     state={
       selectedDate:'',                             //当前日期
-      isSign:false                                 //是否已签到
+      isSign:true                                 //是否已签到
     }
 
 
@@ -29,14 +29,26 @@ class App extends Component{
     }
 
     hideSignBox(){
-      alert("aa");
+    
     }
 
 
     render(){
 
+      //==========自定义日历样式===========
+      let calendarCustomStyle={
+        calendarControls:{borderTopColor:'#F2F2F2',borderTopWidth:1,borderTopStyle:'solid'},
+        title:{margin:20,fontSize:34},
+        calendarHeading:{borderTopWidth:0,borderBottomColor:'#F2F2F2',paddingBottom:16,marginBottom:10},                       //头部
+        dayButton:{borderTopWidth:0,padding:2,borderColor:'#ffffff'},                                                                   //day中的按钮
+        day:{fontSize:30,padding:0},                                                                           //day中的文字
+        weekendDayText:{color:'#333333'},                                                                      //day中是周末的文字        
+        weekendHeading:{color:'red',fontSize:28},                                                              //头部是周末的文字
+        dayHeading:{fontSize:28},                                                                              //头部文字
+      };
+
       return(
-        <View>
+        <View style={{backgroundColor:'#F7F7F7'}}>
 
           {/* 签到 */}
           <View style={styles.signContainer}>
@@ -55,6 +67,7 @@ class App extends Component{
           </View>
           {this.state.isSign?<View><Text style={styles.signPrompt}>还需连签6天，额外奖励45积分!</Text></View>:null}
 
+          {/* 签到成功弹出框*/}
           <Modal ref='signSuccess' contentStyle={{width:502,height:'auto'}}  onShow={this.hideSignBox()} >
             <View style={{width:502}}>
               <Image></Image>
@@ -65,12 +78,16 @@ class App extends Component{
 
           {/* 日历 */}
           <Calendar
+            customStyle={calendarCustomStyle}          
+            isDisabled={false}
             titleFormat={'YYYY年MM月'}
             showControls={false}
             showDayHeadings={true}
             weekStart={0}
-            onDateSelect={(date)=>alert("今天是:"+date)}
+            dayHeadings={['日', '一', '二', '三', '四', '五', '六']}
+            onDateSelect={()=>{}}
           />
+
         </View>
       )
     }
@@ -177,13 +194,13 @@ let styles={
 
   //签到后提示
   signPrompt:{
-    height:80,
-    lineHeight:80,
+    height:82,
+    lineHeight:82,
     textAlign:'center',
     color:'#A6A6A6',
     fontSize:24,
     backgroundColor:'#ffffff',
-    marginBottom:20,
+    marginBottom:16,
     borderBottomWidth:1,
     borderColor:'#F2F2F2'
   }
