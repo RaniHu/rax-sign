@@ -4,48 +4,107 @@ import Text from 'rax-text';
 import Link from 'rax-link';
 import Image from 'rax-image';
 import Touchable  from 'rax-touchable';
-import Calendar from 'rax-calendar';
 import Toast from 'universal-toast';
 import Modal from 'rax-modal';
+import {get,post} from './fetch';
+
+//日历子组件
+import Calendar from './components/calendar';
 import { isAbsolute, relative } from 'upath';
+import { ObjectUnsubscribedError } from 'rxjs';
 
 
 class App extends Component{
-    
+
     state={
-      selectedDate:'',                             //当前日期
-      isSign:true                                 //是否已签到
+      currentDay:new Date().getDate(),                        //当前日期
+      isSignToday:false,                                      //今日是否已签到
+      signInfo:{},                                            //签到信息
+      signDateList:[],
+      tips_str1:'已连续签到0天'
+
+    }
+
+    componentDidMount(){
+
+        // ==========获取签到信息==========
+        let url='/api/unifyHttp.do?userId=bgtest003&method=USER_SIGN_IN_INFO&terNo=SM-G9008V&weblogId=9d92f8613a3a3028f96bc460b32538ba%3A91DBT';
+        let res=post(url).then(result=>{
+          return result.json();
+        }).then(json=>{
+          // debugger;
+          let signList=json.result.signMap?Object.keys(json.result.signMap):"";
+          this.isTodaySign(signList);
+
+          this.setState({
+            signInfo:json.result,
+            signDateList:signList
+          })
+          console.log(json.result);
+        })
+        .catch(error => {
+          console.error(error)
+        })
+    }
+
+    // ========发送签到请求=========
+    signInFn(){
+      let signInUrl='/api/unifyHttp.do?userId=bgtest003&time=2018-11-15&appVersion=6.5.5-debug&method=USER_SIGN_IN&terNo=SM-G9008V&weblogId=9d92f8613a3a3028f96bc460b32538ba%3A91DBT&ua=android';
+      let res=post(signInUrl).then(result=>{
+        return result.json();
+      }).then(json=>{
+        // debugger;
+        if(json.isOk===0){
+            let signList=Object.keys(json.result.signMap);
+            this.isTodaySign(signList);
+            this.setState({
+              signDateList:this.state.signDateList.push(signList),
+            });
+            this.refs.signSuccess.show();
+        }
+        console.log(json);
+      })
     }
 
 
-    //签到操作
+    //=======今天是否签到=======
+    isTodaySign(signList){
+      if(signList){
+        signList.forEach((item,index)=>{
+          if(parseInt(item)==this.state.currentDay){
+            this.setState({isSignToday:true});
+            console.log("是否已经签到:"+this.state.isSignToday);
+          }
+        })
+      }
+
+    }
+
+
+    // ===========点击签到事件==========
     signHandle(){
-      if(this.state.isSign){
+      if(this.state.isSignToday){
         Toast.show("亲，您今天已经签到过了");
       }else{
-        this.setState({isSign:true});
-        this.refs.signSuccess.show();
+         this.signInFn();
       }
     }
 
     hideSignBox(){
-    
+
     }
 
 
     render(){
 
-      //==========自定义日历样式===========
-      let calendarCustomStyle={
-        calendarControls:{borderTopColor:'#F2F2F2',borderTopWidth:1,borderTopStyle:'solid'},
-        title:{margin:20,fontSize:34},
-        calendarHeading:{borderTopWidth:0,borderBottomColor:'#F2F2F2',paddingBottom:16,marginBottom:10},                       //头部
-        dayButton:{borderTopWidth:0,padding:2,borderColor:'#ffffff'},                                                                   //day中的按钮
-        day:{fontSize:30,padding:0},                                                                           //day中的文字
-        weekendDayText:{color:'#333333'},                                                                      //day中是周末的文字        
-        weekendHeading:{color:'red',fontSize:28},                                                              //头部是周末的文字
-        dayHeading:{fontSize:28},                                                                              //头部文字
-      };
+      console.log(this.state.isSignToday);
+      console.log(this.state.signDateList);
+
+      //签到成功图片
+      let signSuccessImg={
+        uri:'http://s.banggo.com/pub7/images/mbshop/weex/sign_success.jpg'
+      }
+
 
       return(
         <View style={{backgroundColor:'#F7F7F7'}}>
@@ -54,38 +113,31 @@ class App extends Component{
           <View style={styles.signContainer}>
             <View style={styles.signRow}>
               <Touchable style={[styles.pointCommon,styles.myPoint]}><Text style={[styles.whiteText,{marginTop:12}]}>339</Text><Text style={styles.whiteText}>我的积分</Text></Touchable>
-              <Touchable onPress={()=>{this.signHandle()}} style={styles.signBtn}><Text style={styles.signText}>{this.state.isSign?'已签到':'签到'}</Text></Touchable>
-              <Touchable style={[styles.pointCommon,styles.pointStore]}><Text style={[styles.whiteText,{lineHeight:90}]}>积分商城</Text></Touchable>              
+              <Touchable onPress={()=>{this.signHandle()}} style={styles.signBtn}><Text style={styles.signText}>{this.state.isSignToday?'已签到':'签到'}</Text></Touchable>
+              <Link href={this.state.signInfo.points_url} style={[styles.pointCommon,styles.pointStore]}><Text style={[styles.whiteText,{lineHeight:90}]}>积分商城</Text></Link>
             </View>
             <View style={{justifyContent:'center',flexDirection:'row'}}>
               <View  style={styles.signDayBox}>
                 <span style={styles.trangleTop}></span>
-                <Text style={styles.signDay}>已连续签到0天</Text>
-                {this.state.isSign?<Text style={styles.greyText}>明日签到领5积分</Text>:null}
+                <Text style={styles.signDay}>{this.state.signInfo.tips_str1}</Text>
+                {this.state.isSignToday?<Text style={styles.greyText}>{this.state.signInfo.tips_str2}</Text>:null}
               </View>
             </View>
           </View>
-          {this.state.isSign?<View><Text style={styles.signPrompt}>还需连签6天，额外奖励45积分!</Text></View>:null}
+          {this.state.isSignToday?<View><Text style={styles.signPrompt}>{this.state.signInfo.tips_str3}</Text></View>:null}
 
           {/* 签到成功弹出框*/}
           <Modal ref='signSuccess' contentStyle={{width:502,height:'auto'}}  onShow={this.hideSignBox()} >
             <View style={{width:502}}>
-              <Image></Image>
-              <Text style={{textAlign:'center',lineHeight:95,width:'100%',display:'block'}}>签到成功!</Text>
+              <Image source={signSuccessImg} style={{width:502,height:375}}></Image>
             </View>
           </Modal>
-        
+
 
           {/* 日历 */}
           <Calendar
-            customStyle={calendarCustomStyle}          
-            isDisabled={false}
             titleFormat={'YYYY年MM月'}
-            showControls={false}
-            showDayHeadings={true}
-            weekStart={0}
-            dayHeadings={['日', '一', '二', '三', '四', '五', '六']}
-            onDateSelect={()=>{}}
+            signList={this.state.signDateList}
           />
 
         </View>
@@ -106,7 +158,6 @@ let styles={
     flexDirection:'row',
     justifyContent:'space-between',
     color:'#ffffff'
-
   },
   //签到按钮
   signBtn:{
@@ -120,7 +171,7 @@ let styles={
   },
   //签到文字
   signText:{
-    color:'#FFFFFF',    
+    color:'#FFFFFF',
     fontSize:42
   },
   //我的积分和积分商城
@@ -142,9 +193,9 @@ let styles={
   whiteText:{
     textAlign:'center',
     fontSize:24,
-    color:'#FFFFFF',    
+    color:'#FFFFFF',
   },
- 
+
 
 
 
@@ -152,8 +203,8 @@ let styles={
   signDayBox:{
     position:'relative',
     width:530,
-    height:100,    
-    textAlign:'center',        
+    height:100,
+    textAlign:'center',
     borderRadius:10,
     backgroundColor:'#FFF2ED',
     justifyContent:'center'
@@ -165,7 +216,7 @@ let styles={
     height:0,
     fontSize:0,
     top:-24,
-    left:'50%',
+    left:265,
     marginLeft:-6,
     borderWidth:12,
     borderStyle:'solid',
@@ -173,7 +224,7 @@ let styles={
     borderLeftColor:'transparent',
     borderRightColor:'transparent',
     borderBottomColor:'#FFF2ED'
-    
+
   },
   //签到天数
   signDay:{
@@ -204,7 +255,7 @@ let styles={
     borderBottomWidth:1,
     borderColor:'#F2F2F2'
   }
- 
+
 
 }
 

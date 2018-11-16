@@ -139,6 +139,15 @@ module.exports = {
         test: /\.(png|jpe?g|gif)$/i,
         loader: 'base64-image-loader'
       }
-    ]
-  }
+    ],
+  },
+  devServer: {
+    proxy: {
+        '/api': {
+            target:  isProducation?'http://mobileapp.banggo.com/PlatformMobileService/custom':'http://10.100.200.145:8081/PlatformMobileService/custom',
+            changeOrigin: true, // 如果接口跨域，需要进行这个参数配置
+          }
+    },
+
+}
 };
