@@ -11,7 +11,6 @@ import {get,post} from './fetch';
 //日历子组件
 import Calendar from './components/calendar';
 import { isAbsolute, relative } from 'upath';
-import { ObjectUnsubscribedError } from 'rxjs';
 
 
 class App extends Component{
@@ -20,60 +19,70 @@ class App extends Component{
       currentDay:new Date().getDate(),                        //当前日期
       isSignToday:false,                                      //今日是否已签到
       signInfo:{},                                            //签到信息
-      signDateList:[],
-      tips_str1:'已连续签到0天'
+      signDateList:[],                                        //已签到日历
+      tips_str1:'已连续签到0天',
+      userId:''                                               //用户id
 
     }
 
     componentDidMount(){
+        //从native端获取用户id
+        let userId=require('@weex-module/CheckInModule').getUserId();
+        this.setState({userId:userId});
+        this.getSignInfo(userId);
+    }
 
-        // ==========获取签到信息==========
-        let url='/api/unifyHttp.do?userId=bgtest003&method=USER_SIGN_IN_INFO&terNo=SM-G9008V&weblogId=9d92f8613a3a3028f96bc460b32538ba%3A91DBT';
-        let res=post(url).then(result=>{
-          return result.json();
+
+    // ==========获取签到信息==========
+    getSignInfo(userId){
+        let url='/api/unifyHttp.do?userId='+userId+'&method=USER_SIGN_IN_INFO&terNo=SM-G9008V&weblogId=9d92f8613a3a3028f96bc460b32538ba%3A91DBT';
+        post(url).then(result=>{
+            return result.json();
         }).then(json=>{
-          // debugger;
-          let signList=json.result.signMap?Object.keys(json.result.signMap):"";
-          this.isTodaySign(signList);
-
-          this.setState({
-            signInfo:json.result,
-            signDateList:signList
-          })
-          console.log(json.result);
+            let signList=json.result.signMap?Object.keys(json.result.signMap):[];
+            this.setState({
+                signInfo:json.result,
+                signDateList:signList
+            })
+            this.isTodaySign(signList,'init');
         })
-        .catch(error => {
-          console.error(error)
-        })
+            .catch(error => {
+                console.error(error)
+            })
     }
 
     // ========发送签到请求=========
-    signInFn(){
-      let signInUrl='/api/unifyHttp.do?userId=bgtest003&time=2018-11-15&appVersion=6.5.5-debug&method=USER_SIGN_IN&terNo=SM-G9008V&weblogId=9d92f8613a3a3028f96bc460b32538ba%3A91DBT&ua=android';
-      let res=post(signInUrl).then(result=>{
+    sendSignIn(){
+      let userId=this.state.userId;
+      let currentDay=this.state.currentDay;
+      let signInUrl='/api/unifyHttp.do?userId='+userId+'&time='+currentDay+'&appVersion=6.5.5-debug&method=USER_SIGN_IN&terNo=SM-G9008V&weblogId=9d92f8613a3a3028f96bc460b32538ba%3A91DBT&ua=android';
+      post(signInUrl).then(result=>{
         return result.json();
       }).then(json=>{
-        // debugger;
         if(json.isOk===0){
             let signList=Object.keys(json.result.signMap);
-            this.isTodaySign(signList);
-            this.setState({
-              signDateList:this.state.signDateList.push(signList),
-            });
+            // this.isTodaySign(signList,'signAction');
+            this.getSignInfo(userId);
             this.refs.signSuccess.show();
         }
-        console.log(json);
       })
     }
 
 
     //=======今天是否签到=======
-    isTodaySign(signList){
-      if(signList){
+    isTodaySign(signList,type){
+      if(signList.length>0){
         signList.forEach((item,index)=>{
           if(parseInt(item)==this.state.currentDay){
-            this.setState({isSignToday:true});
-            console.log("是否已经签到:"+this.state.isSignToday);
+            let curSignList=this.state.signDateList;
+
+            if(type=='signAction'){
+                curSignList.push(signList[0]);
+            }
+            this.setState({
+                isSignToday:true,
+                signDateList:curSignList
+            });
           }
         })
       }
@@ -86,7 +95,7 @@ class App extends Component{
       if(this.state.isSignToday){
         Toast.show("亲，您今天已经签到过了");
       }else{
-         this.signInFn();
+         this.sendSignIn();
       }
     }
 
@@ -96,9 +105,6 @@ class App extends Component{
 
 
     render(){
-
-      console.log(this.state.isSignToday);
-      console.log(this.state.signDateList);
 
       //签到成功图片
       let signSuccessImg={

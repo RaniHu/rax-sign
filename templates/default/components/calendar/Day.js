@@ -15,16 +15,20 @@ export default class Day extends Component {
   dayTextStyle = (day) => {
     const dayTextStyle = [styles.day];
     const curDay=new Date().getDate();
-    this.props.signList?this.props.signList.map((item)=>{
-        //已签到的日期
-        if(parseInt(day)===parseInt(item)){
-            dayTextStyle.push(styles.signDayText);
-        }
-        //未签到的日期
-        if(parseInt(day)<curDay&&parseInt(day)!=parseInt(item)){
-            dayTextStyle.push(styles.unSignDayText);
-        }
-    }):null
+
+      //未签到的日期
+      if(parseInt(day)<curDay){
+          dayTextStyle.push(styles.unSignDayText);
+      }
+      if(this.props.signList.length>0){
+          this.props.signList.forEach((item)=>{
+              //已签到的日期
+              if(parseInt(day)===parseInt(item)){
+                  dayTextStyle.push(styles.signDayText);
+              }
+          })
+      }
+
     return dayTextStyle;
   }
 
@@ -48,7 +52,7 @@ export default class Day extends Component {
           <View style={{alignItems:'center'}}>
             <Text style={this.dayTextStyle(caption)}>{caption}</Text>
               {
-                  this.props.signList?this.props.signList.map((item,index)=>{
+                  this.props.signList.length>0?this.props.signList.map((item)=>{
                     if(parseInt(caption)===parseInt(item)){
                         return(
                             <span style={{width:8,height:8,backgroundColor:'#FFC37B',borderRadius:4}}></span>
