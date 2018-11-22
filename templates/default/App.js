@@ -10,7 +10,13 @@ import {get,post} from './fetch';
 
 //日历子组件
 import Calendar from './components/calendar';
-import { isAbsolute, relative } from 'upath';
+
+//接口ip
+import {requestHost} from './ipconfig';
+
+//与native交互的module
+// const myMeModule = __weex_require__('@weex-module/MyMeModule');
+
 
 
 class App extends Component{
@@ -21,22 +27,39 @@ class App extends Component{
       signInfo:{},                                            //签到信息
       signDateList:[],                                        //已签到日历
       tips_str1:'已连续签到0天',
-      userId:''                                               //用户id
-
+      userId:'',                                               //用户id
+      requestIp:''
     }
 
     componentDidMount(){
-        //从native端获取用户id
-        let userId=require('@weex-module/CheckInModule').getUserId();
-        this.setState({userId:userId});
-        this.getSignInfo(userId);
+
+      //判断当前环境
+      let isProducation = process.env.NODE_ENV === 'production';
+      if(isProducation){
+        let self=this;        
+        this.setState({requestIp:requestHost.devIp});
+       //从native端获取用户id
+        myMeModule.getUserId(function(param){
+          let userId=JSON.parse(param).userId;
+          self.setState({userId:userId});
+          self.getSignInfo(userId);
+        })
+      }else{
+        this.setState({userId:'test03'});
+        this.getSignInfo(this.state.userId);
+      }
+
+            
+    
+
     }
 
 
     // ==========获取签到信息==========
-    getSignInfo(userId){
-        let url='/api/unifyHttp.do?userId='+userId+'&method=USER_SIGN_IN_INFO&terNo=SM-G9008V&weblogId=9d92f8613a3a3028f96bc460b32538ba%3A91DBT';
-        post(url).then(result=>{
+    getSignInfo(userId){      
+        let url=this.state.requestIp+'/api/unifyHttp.do?userId='+userId+'&method=USER_SIGN_IN_INFO&terNo=SM-G9008V&weblogId=9d92f8613a3a3028f96bc460b32538ba%3A91DBT';
+        if(userId){
+          post(url).then(result=>{
             return result.json();
         }).then(json=>{
             let signList=json.result.signMap?Object.keys(json.result.signMap):[];
@@ -44,44 +67,45 @@ class App extends Component{
                 signInfo:json.result,
                 signDateList:signList
             })
-            this.isTodaySign(signList,'init');
+            this.isTodaySign(signList);
         })
             .catch(error => {
-                console.error(error)
+                alert(error);
+                console.error(error);
             })
+        }else return false;
+     
     }
 
     // ========发送签到请求=========
     sendSignIn(){
       let userId=this.state.userId;
       let currentDay=this.state.currentDay;
-      let signInUrl='/api/unifyHttp.do?userId='+userId+'&time='+currentDay+'&appVersion=6.5.5-debug&method=USER_SIGN_IN&terNo=SM-G9008V&weblogId=9d92f8613a3a3028f96bc460b32538ba%3A91DBT&ua=android';
+      let signInUrl=this.state.requestIp+'/api/unifyHttp.do?userId='+userId+'&time='+currentDay+'&appVersion=6.5.5-debug&method=USER_SIGN_IN&terNo=SM-G9008V&weblogId=9d92f8613a3a3028f96bc460b32538ba%3A91DBT&ua=android';
       post(signInUrl).then(result=>{
         return result.json();
       }).then(json=>{
         if(json.isOk===0){
-            let signList=Object.keys(json.result.signMap);
-            // this.isTodaySign(signList,'signAction');
+             alert("签到请求成功!");
             this.getSignInfo(userId);
             this.refs.signSuccess.show();
         }
-      })
+      }) 
+        .catch(error => {
+        alert(error);
+        console.error(error);
+    })
     }
 
 
     //=======今天是否签到=======
-    isTodaySign(signList,type){
+    isTodaySign(signList){
       if(signList.length>0){
         signList.forEach((item,index)=>{
           if(parseInt(item)==this.state.currentDay){
             let curSignList=this.state.signDateList;
-
-            if(type=='signAction'){
-                curSignList.push(signList[0]);
-            }
             this.setState({
                 isSignToday:true,
-                signDateList:curSignList
             });
           }
         })
@@ -95,6 +119,7 @@ class App extends Component{
       if(this.state.isSignToday){
         Toast.show("亲，您今天已经签到过了");
       }else{
+         alert("即将调用签到接口!");        
          this.sendSignIn();
       }
     }
@@ -118,8 +143,8 @@ class App extends Component{
           {/* 签到 */}
           <View style={styles.signContainer}>
             <View style={styles.signRow}>
-              <Touchable style={[styles.pointCommon,styles.myPoint]}><Text style={[styles.whiteText,{marginTop:12}]}>339</Text><Text style={styles.whiteText}>我的积分</Text></Touchable>
-              <Touchable onPress={()=>{this.signHandle()}} style={styles.signBtn}><Text style={styles.signText}>{this.state.isSignToday?'已签到':'签到'}</Text></Touchable>
+              <Touchable style={[styles.pointCommon,styles.myPoint]}><Text style={[styles.whiteText,{marginTop:12}]}>{this.state.signInfo.points}</Text><Text style={styles.whiteText}>我的积分</Text></Touchable>
+              <Touchable onPress={()=>this.signHandle()} style={styles.signBtn}><Text style={styles.signText}>{this.state.isSignToday?'已签到':'签到'}</Text></Touchable>
               <Link href={this.state.signInfo.points_url} style={[styles.pointCommon,styles.pointStore]}><Text style={[styles.whiteText,{lineHeight:90}]}>积分商城</Text></Link>
             </View>
             <View style={{justifyContent:'center',flexDirection:'row'}}>
